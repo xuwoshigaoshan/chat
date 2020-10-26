@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+	<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+	<title>视频播放</title>
+	<link rel="stylesheet" type="text/css" href="../css/aui.css" />
+	<script type="text/javascript" src="../js/vconsole.min.js" ></script>
+	<script type="text/javascript">
+
+		window.onload=function(){
+			new VConsole();
+		}
+		var src = '播放地址支持rtmp http等协议';
+		
+		var video = null;
+		// H5 plus事件处理
+		function plusReady(){
+			// 创建视频播放控件
+			video = new plus.video.VideoPlayer('video',{
+				src:src
+			});
+			video.play();
+		}
+		document.addEventListener('plusready', plusReady, false);
+		// 切换视频地址
+		function switchVideo(src){
+			document.getElementById('content').innerHTML = src;
+			console.log(src);
+			video.setOptions({src:src});
+			video.play();
+		}
+		function rollBack(){
+			location.href="../index.html";
+		}
+	</script>
+	</head>
+	<body style="margin:0;padding:0;text-align:center;">
+		<header class="aui-bar aui-bar-nav">
+			<a class="aui-pull-left aui-btn" onclick="rollBack()">
+				<span class="aui-iconfont aui-icon-left"></span>
+			</a>
+			<div class="aui-title" id="onlineUserId">我的聊天室</div>
+		</header>
+		<span id="content" style="color:#0000FF">默认</span><br>
+		
+		<div id="video" style="width:100%;height:300px;background-color:#ffffff;margin:auto;"></div>
+		<br>
+		<button onclick="switchVideo('播放地址1')">切换视频地址1</button><br /><br>
+		<button onclick="switchVideo('rtmp://47.97.76.76:1935/oflaDemo/stream1603698420652')">观看直播2rtmp</button><br /><br>
+		<button onclick="switchVideo('观看地址3')">观看直播3m3u8</button><br />
+
+	</body>
+</html>

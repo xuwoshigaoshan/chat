@@ -1,0 +1,265 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,width=device-width,initial-scale=1.0"/>
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title>xgs-聊天室</title>
+    <link rel="stylesheet" type="text/css" href="../css/aui.css" />
+	<style>
+		.aui-chat {
+		    width: 100%;
+		    padding: 0.5rem;
+			position: fixed;
+			top: 2rem;
+			min-height: 15rem;
+			bottom: 2.0rem;
+			overflow: scroll;
+		}
+	</style>
+</head>
+<body>
+	<header class="aui-bar aui-bar-nav">
+		<a class="aui-pull-left aui-btn" onclick="rollBack()">
+			<span class="aui-iconfont aui-icon-left"></span>
+		</a>
+		<div class="aui-title" id="onlineUserId">我的聊天室</div>
+	</header>
+    <section class="aui-chat" id="aui-chat-content">
+<!--        <div class="aui-chat-header">2016年7月13日</div> -->
+<!--        
+<div class="aui-chat-item aui-chat-left">
+            <div class="aui-chat-media">
+                <img src="../image/demo2.png" />
+            </div>
+            <div class="aui-chat-inner">
+                <div class="aui-chat-name" id="myName">AUI</div>
+                <div class="aui-chat-content">
+                    <div class="aui-chat-arrow"></div>
+                    Hello AUI 2.0!
+                </div>
+                <div class="aui-chat-status aui-chat-status-refresh">
+                    <i class="aui-iconfont aui-icon-correct aui-text-success"></i>
+                </div>
+            </div>
+        </div> 
+		-->
+<!--        
+<div class="aui-chat-item aui-chat-right">
+            <div class="aui-chat-media">
+                <img src="../image/liulangnan.png" />
+            </div>
+            <div class="aui-chat-inner">
+                <div class="aui-chat-name">流浪男</div>
+                <div class="aui-chat-content">
+                    <div class="aui-chat-arrow"></div>
+                    你好！
+                </div>
+                <div class="aui-chat-status">
+                    <i class="aui-iconfont aui-icon-info aui-text-danger"></i>
+                </div>
+            </div>
+        </div>	 
+		-->
+		
+    </section>
+
+<footer class="aui-bar aui-bar-tab" id="footer">
+	<div class="aui-searchbar" id="search">
+		<div class="aui-searchbar-input aui-border-radius">
+			<!-- <i class="aui-iconfont aui-icon-search"></i> -->
+			<input type="search" placeholder="请输入发送内容" id="search-input">
+			<div class="aui-searchbar-clear-btn">
+				<i class="aui-iconfont aui-icon-close"></i>
+			</div>
+		</div>
+		<div class="aui-searchbar-btn" tapmode="">取消</div>
+	</div>
+</footer>
+</body>
+<script type="text/javascript" src="../js/common.js" ></script>
+<script type="text/javascript" src="../js/jquery.min.js" ></script>
+<script type="text/javascript" src="../js/vconsole.min.js" ></script>
+<script type="text/javascript">
+	// new VConsole();
+	// sessionStorage.setItem("userId","001") 
+	// sessionStorage.setItem("toUserId","002")
+    var websocket = null;
+    var userId=localStorage.getItem("userId");
+	var toUserId=sessionStorage.getItem("toUserId");
+	var roomId=sessionStorage.getItem("websocket-chatRoomId");
+
+	window.onload=function(){
+		
+		iniHoistoryMessage();
+		$("#onlineUserId").html(toUserId);
+		//判断当前浏览器是否支持WebSocket
+		if('WebSocket' in window){
+		    //连接WebSocket节点
+			try{
+				websocket = new WebSocket("wss://www.wrx.email/chatSocket/connectWebSocket/"+userId);
+			    // websocket = new WebSocket("ws://localhost:8888/chatSocket/connectWebSocket/"+userId);
+				//连接发生错误的回调方法
+				websocket.onerror = function(){
+					// setMessageInnerHTML("error");
+					setMessageToContent("3","连接错误","");
+				};
+				//连接成功建立的回调方法
+				websocket.onopen = function(event){
+					console.log("onopen");
+					// setMessageInnerHTML("open");
+					$("#aui-chat-content").append('<div class="aui-chat-header">'+getLocalDate()+'</div>');
+				}
+				//接收到消息的回调方法
+				websocket.onmessage = function(event){
+					console.log("onmessage");
+					// setMessageInnerHTML(event.data);
+					var str="";
+					var jsonStr="";
+					var message="";
+					var resultToUserId="";
+					var resultFromUserId="";
+					var thisRoomId="";
+					try{
+						// str=JSON.stringify(event.data);
+						// jsonStr=JSON.parse(str);
+						// message=jsonStr.textMessage;
+						jsonStr=JSON.parse(event.data);
+						message=jsonStr.textMessage;
+						resultToUserId=jsonStr.touserId;
+						resultFromUserId=jsonStr.fromuserId;
+						thisRoomId=jsonStr.roomId;
+					}catch(e){
+						message="";
+					}
+					
+					if(message!=""&&message!=undefined){
+						if(roomId==thisRoomId){
+							setMessageToContent("2",message,resultFromUserId);		
+						}
+					}
+
+				}
+				//连接关闭的回调方法
+				websocket.onclose = function(){
+					// setMessageInnerHTML("close");
+					console.log("onclose");
+					setMessageToContent("3","连接已关闭","");
+				}
+				//监听窗口关闭事件，当窗口关闭时，主动去关闭websocket连接，防止连接还没断开就关闭窗口，server端会抛异常。
+				window.onbeforeunload = function(){
+					websocket.close();
+				}			
+			}catch(e){
+				null;
+			}
+		}
+		else{
+		    alert('Not support websocket')
+		}	 		
+	}
+ 
+	 function setMessageToContent(from,message,fromUserId){
+		 var innerHtml="";
+		 if(from=="2"){
+			 innerHTML='<div class="aui-chat-item aui-chat-left"><div class="aui-chat-media"><img src="../image/hi.jpg" />'
+				+'</div><div class="aui-chat-inner"><div class="aui-chat-name" >'+fromUserId+'</div>'
+				+'<div class="aui-chat-content"><div class="aui-chat-arrow"></div>'+message+'</div>'
+				+'<div class="aui-chat-status aui-chat-status-refresh"><i class="aui-iconfont111 aui-icon-correct111 '
+				+'aui-text-success"></i></div></div></div> ';
+		 }else if(from=="1"){
+			 innerHTML='<div class="aui-chat-item aui-chat-right"><div class="aui-chat-media"><img src="../image/liulangnan.png" />'
+			+'</div><div class="aui-chat-inner"><div class="aui-chat-name">'+userId+'</div><div class="aui-chat-content">'
+			+'<div class="aui-chat-arrow"></div>'+message+'</div><div class="aui-chat-status">'
+			+'<i class="aui-iconfont111 aui-icon-info111 aui-text-danger"></i></div></div></div>'
+		 }else{
+			 innerHTML='<div class="aui-chat-header">'+message+'</div>';
+		 }
+		 $("#aui-chat-content").append(innerHTML);
+	 }
+ 
+    //关闭连接
+    function closeWebSocket(){
+        websocket.close();
+    }
+ 
+    //发送消息
+    function send(){
+        var message = document.getElementById('search-input').value;
+		if(message.trim()==""){
+			alert("请输入发送信息");
+			return;
+		}
+		setMessageToContent("1",message,"");
+		$("#search-input").val("");
+        var item={};
+		var $toUserList=[];
+		$toUserList.push(toUserId);
+		$toUserList.push("222");
+        item.message=message;
+        item.userId=userId;
+        item.to=toUserId;
+		item.sendType="double";//double两个人通讯；group群聊
+		item.roomId=roomId;
+        websocket.send(JSON.stringify(item));
+    }
+	$(document).keyup(function(){
+		switch(event.keyCode){
+			case 27:
+			return;
+			case 13:
+			document.activeElement.blur();
+			send();
+		}
+	})
+	function rollBack(){
+		sessionStorage.removeItem("websocket-chatRoomId");
+		location.href="../index.html";
+	}
+	function iniHoistoryMessage(){
+		$.ajax({
+			dataType:"json",
+			url:commonPreUrl+"/chatSocket/mySocketController/getHistoryMessageByRoomId",
+			type:"POST",
+			data:{
+				"roomId":roomId
+			},
+			xhrFields:{withCredentials:true},
+			async:true,
+			contentType:"application/x-www-form-urlencoded;charset=utf-8",
+			success:function(result){
+				// alert("success");
+				if(result.errorCode=="000000"){
+					var arrayList=[];
+					var arrayLength=0;
+					var innerHtml="";
+					arrayList=result.chatHistoryList;
+					arrayLength=arrayList.length;
+					for(var i=arrayLength-1;i>-1;i--){
+						var str="";
+						if(arrayList[i].fromuserId==userId){
+							str='<div class="aui-chat-item aui-chat-right"><div class="aui-chat-media"><img src="../image/liulangnan.png" />'
+							+'</div><div class="aui-chat-inner"><div class="aui-chat-name">'+arrayList[i].fromuserId+'</div><div class="aui-chat-content">'
+							+'<div class="aui-chat-arrow"></div>'+arrayList[i].textMessage+'</div><div class="aui-chat-status">'
+							+'<i class="aui-iconfont111 aui-icon-info111 aui-text-danger"></i></div></div></div>';							
+						}else {
+							str='<div class="aui-chat-item aui-chat-left"><div class="aui-chat-media"><img src="../image/hi.jpg" />'
+							+'</div><div class="aui-chat-inner"><div class="aui-chat-name" >'+arrayList[i].fromuserId+'</div>'
+							+'<div class="aui-chat-content"><div class="aui-chat-arrow"></div>'+arrayList[i].textMessage+'</div>'
+							+'<div class="aui-chat-status aui-chat-status-refresh"><i class="aui-iconfont111 aui-icon-correct111 '
+							+'aui-text-success"></i></div></div></div> ';
+						}
+						innerHtml+=str;
+					}
+					
+				}
+				$("#aui-chat-content").empty();
+				$("#aui-chat-content").append(innerHtml);
+			},
+			error:function(XMLHttpRequest){
+				alert("error:"+XMLHttpRequest.status+";"+XMLHttpRequest.onerror);
+			}
+		})
+	}
+</script>
+</html>

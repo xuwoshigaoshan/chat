@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+	<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+	<title>Video Example</title>
+	<link rel="stylesheet" type="text/css" href="../css/aui.css" />
+	<script type="text/javascript" src="../js/vconsole.min.js" ></script>
+	<script type="text/javascript">
+		window.onload=function(){
+			new VConsole();
+		}
+		var pusher = null;
+		// H5 plus事件处理
+		function plusReady(){
+			// 创建直播推流控件
+			pusher = new plus.video.LivePusher('pusher',{
+				url:'rtmp://47.97.76.76:1935/oflaDemo/stream1603698420652',//rtmp://localhost/oflaDemo
+				mode:'FHD',
+				muted:false,
+			});
+			pusher.preview();
+			// 监听状态变化事件
+			pusher.addEventListener('statechange', function(e){
+				console.log('statechange: '+JSON.stringify(e));
+			}, false);
+		}
+		document.addEventListener('plusready', plusReady, false);
+		// 设置推流服务器
+		function updatePusher() {
+			var url= document.getElementById('pushurl').value;
+			pusher.setOptions({
+				url:url
+			});
+		}
+		// 开始推流
+		function startPusher() {
+			pusher.start();
+		}
+		
+		// 切换摄像头
+		function switchCamera() {
+			pusher.switchCamera();
+		}
+		function rollBack(){
+			location.href="../index.html";
+		}
+	</script>
+	</head>
+	<body style="margin:0;padding:0;text-align:center;">
+		<header class="aui-bar aui-bar-nav">
+			<a class="aui-pull-left aui-btn" onclick="rollBack()">
+				<span class="aui-iconfont aui-icon-left"></span>
+			</a>
+			<div class="aui-title" id="onlineUserId">推流服务</div>
+		</header>
+		<div id="pusher" style="width:100%;height:300px;background-color:#000000;margin:auto"></div>
+		<br/>
+		<input type="text" id="pushurl" value="rtmp://推流服务器地址"  style="width: 500px;"/>  <br><br>
+		<button onclick="updatePusher()">更新推流服务器</button>
+		<br/><br>
+		<button onclick="startPusher()">开始推流</button>  <br><br><button onclick="switchCamera()">切换摄像头</button>
+		<br/><br/>
+		
+	</body>
+</html>

@@ -1,0 +1,12 @@
+利用H5实现RTMP流的WEB移动端直播
+
+
+主要实现方式：使用H5的video 元素结合H5的网络频播放器（video.js）实现rtmp流的直播播放
+
+video.js 介绍
+Video.js 是一个通用的在网页上嵌入视频播放器的 JS 库，Video.js 自动检测浏览器对 HTML5 的支持情况，如果不支持 HTML5 则自动使用 Flash 播放器。
+优点：
+       2.使用它非常的容易，只要花几秒钟就可以架起一个视频播放页面。
+       3.它几乎兼容所有的浏览器，并且优先使用html5，在不支持的浏览器中，会自动使用flash进行播放。
+       4. 界面可以定制，纯javascript和css打造。说明文档也非常的详细。
+注：html5的video标签只支持mp4、webm、ogg三种格式，不支持flv，flash格式， flv格式是flash专用的，rtmp流为flv格式的，必须使用flash播放器，在video.js内部可以检测浏览器是否支持html5播放器直接播放，如果不支持内部会自动调用浏览器的flash播放器播放视频。Edge、谷歌浏览器中网站默认是禁用flash的，手动设置为允许flash即可

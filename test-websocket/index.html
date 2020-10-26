@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title></title>
+	<link rel="stylesheet" type="text/css" href="./css/aui.css" />
+	<script type="text/javascript" src="./js/common.js" ></script>
+	<script type="text/javascript" src="./js/jquery.min.js" ></script>
+	<script type="text/javascript" src="./js/vconsole.min.js" ></script>
+	<script type="text/javascript" src="./js/MD5_new.js"></script>
+	<style>
+		video::-webkit-media-controls-fullscreen-button {    
+			display: none;
+		}
+
+		video::-webkit-media-controls-play-button {}
+
+		video::-webkit-media-controls-timeline {}
+
+		video::-webkit-media-controls-current-time-display{}
+
+		video::-webkit-media-controls-time-remaining-display {}
+
+		video::-webkit-media-controls-mute-button {}
+
+		video::-webkit-media-controls-toggle-closed-captions-button {}
+
+		video::-webkit-media-controls-volume-slider {}
+	</style>
+    <script type="text/javascript">
+		
+		var userId="";
+		var myChatRoomList={};
+    	window.onload=function(){
+			new VConsole();
+			// alert(md5('徐高山').toLocaleUpperCase());
+			var localUserId=localStorage.getItem("userId");
+			if(localUserId==null||localUserId==""){
+				userId=getLocalYMDHMSM();
+				localStorage.setItem("userId",userId);
+				$("#onlineUserId").html("当前用户："+userId);
+			}else{
+				userId=localUserId;
+				$("#onlineUserId").html("当前用户："+userId);
+			}
+
+			//获取当前用户的所有聊天室
+			iniMyChatRoom();
+			return;
+			//判断当前浏览器是否支持WebSocket
+			if('WebSocket' in window){
+				//连接WebSocket节点
+				try{
+					websocket = new WebSocket("ws://172.16.78.41:8083/chatSocket/connectWebSocket/"+userId);
+					//连接发生错误的回调方法
+					websocket.onerror = function(){
+						// setMessageInnerHTML("error");
+						console.log("onerror");
+						$("#aui-list-content").empty();
+						setMessageToContent("3","连接错误")
+					};
+					//连接成功建立的回调方法
+					websocket.onopen = function(event){
+						console.log("onopen");
+						// setMessageInnerHTML("open");
+						$("#aui-list-content").empty();
+						$("#aui-list-content").append('<li class="aui-list-item aui-list-item-arrow"><div class="aui-chat-header">当前用户：'+userId+'</div></li>');
+					}
+					//接收到消息的回调方法
+					websocket.onmessage = function(event){
+						console.log("onmessage");
+						// setMessageInnerHTML(event.data);
+						var str="";
+						var jsonStr="";
+						var onlineUsers=[];
+						var newUserId="";
+						var messageType="";//messageType 1代表上线 2代表下线 3代表在线名单  4代表普通消息
+						try{
+							// str=JSON.stringify(event.data);
+							// jsonStr=JSON.parse(str);
+							// message=jsonStr.textMessage;
+							jsonStr=JSON.parse(event.data);
+							messageType=jsonStr.messageType;
+							if(messageType=="1"){
+								newUserId=jsonStr.userId;
+							}else if(messageType=="2"){
+								onlineUsers=jsonStr.onlineUsers;	
+							}else if(messageType=="3"){
+								onlineUsers=jsonStr.onlineUsers;
+							}
+
+
+						}catch(e){
+							onlineUsers=[];
+							messageType="";
+							newUserId=";"
+						}
+						if(messageType=="2"||messageType=="3"){
+							if(onlineUsers.length>0&&onlineUsers!=undefined){
+								$("#aui-list-content").empty();
+								setMessageToContent("2",onlineUsers);	
+							}
+						}else if(messageType=="1"){
+							var item=[];
+							item.push(newUserId)
+							setMessageToContent("2",item);	
+						}
+					}
+					//连接关闭的回调方法
+					websocket.onclose = function(){
+						// setMessageInnerHTML("close");
+						console.log("onclose");
+						$("#aui-list-content").empty();
+						setMessageToContent("3","连接已关闭");
+					}
+					//监听窗口关闭事件，当窗口关闭时，主动去关闭websocket连接，防止连接还没断开就关闭窗口，server端会抛异常。
+					window.onbeforeunload = function(){
+						websocket.close();
+					}			
+				}catch(e){
+					null;
+				}
+			}
+			else{
+				alert('Not support websocket')
+			}	 				
+			
+		}
+		function toChat(theUserId){
+			if(theUserId==userId){
+				alert("请选择除本人以外的人员")
+				return;
+			}else{
+				sessionStorage.setItem("toUserId",theUserId)
+				location.href="./html/chat_frm.html";
+			}
+		}
+	 function setMessageToContent(from,onlineUsers){
+		 var innerHTML="";
+		 if(from=="2"){
+			 for(var i=0;i<onlineUsers.length;i++){
+				 if(onlineUsers[i]==userId){
+					 continue;
+				 }
+				 var strHtml='<li class="aui-list-item aui-list-item-arrow" onclick="toChat(\''+onlineUsers[i]+'\')"><div class="aui-media-list-item-inner">'
+					+'<div class="aui-list-item-inner"><div class="aui-list-item-text">'
+					+'<div class="aui-list-item-title">工号：'+onlineUsers[i]+'</div>'
+					+'<div class="aui-list-item-right">'+getLocalHMS()+'</div></div>'
+					+'<div class="aui-list-item-text aui-ellipsis-2">'+(userId==onlineUsers[i]?"自己":"在线人员")+'</div></div></div></li>';
+					innerHTML+=strHtml;
+			 }
+		 }else{
+			 innerHTML='<li class="aui-list-item aui-list-item-arrow"><div class="aui-chat-header">'+onlineUsers+'</div></li>';
+		 }
+
+		 $("#aui-list-content").append(innerHTML);
+	 } 
+	//关闭连接
+	function closeWebSocket(){
+	    websocket.close();
+	} 
+	
+	//创建聊天室
+	function createChatRoom(){
+		var $data={};
+		var item=[];
+		// item.push(userId);
+		item.push("20200909 09:57:46:243");
+		item.push("20200907 15:41:33:30");
+		item.push(userId);
+		$data.createrUserId=userId;
+		$data.userIdListStr=JSON.stringify(item);
+		$.ajax({
+			dataType:"json",
+			url:commonPreUrl+"/chatSocket/mySocketController/createChatRoom",
+			type:"POST",
+			data:$data,
+			xhrFields:{withCredentials:true},
+			async:true,
+			contentType:"application/x-www-form-urlencoded;charset=utf-8",
+			success:function(result){
+				// alert("success");
+				if(result.errorCode=="000000"){
+					alert("success");
+					sessionStorage.setItem("websocket-chatRoomId",result.chatRoom.id);
+					sessionStorage.setItem("toUserId",JSON.stringify(item));
+					// location.href="./html/chat_frm.html";
+				}
+			},
+			error:function(XMLHttpRequest){
+				alert("error:"+XMLHttpRequest.status+";"+XMLHttpRequest.onerror);
+			}
+		})
+	}
+	//
+	function iniMyChatRoom(){
+		var $data={};
+		$data.userId=userId;
+		$.ajax({
+			dataType:"json",
+			url:commonPreUrl+"/chatSocket/mySocketController/getMyChatRoomByMyId",
+			type:"POST",
+			data:$data,
+			xhrFields:{withCredentials:true},
+			async:true,
+			contentType:"application/x-www-form-urlencoded;charset=utf-8",
+			success:function(result){
+				// alert("success");
+				var innerHTML="";
+				if(result.errorCode=="000000"){
+					var arrayData=result.myChatRoomList;
+					myChatRoomList=arrayData;
+					var arrayLength=arrayData.length;
+					 for(var i=0;i<arrayLength;i++){
+						 var strHtml='<li class="aui-list-item aui-list-item-arrow" onclick="toChat2(\''+arrayData[i].id+'\')"><div class="aui-media-list-item-inner">'
+							+'<div class="aui-list-item-inner"><div class="aui-list-item-text">'
+							+'<div class="aui-list-item-title">房间号：'+arrayData[i].id+'</div>'
+							+'<div class="aui-list-item-right">'+arrayData[i].createTime+'</div></div>'
+							+'<div class="aui-list-item-text aui-ellipsis-2">群主:'+arrayData[i].createrUserId+'</div></div></div></li>';
+							innerHTML+=strHtml;
+					 }
+				}else{
+					innerHTML='<li class="aui-list-item aui-list-item-arrow"><div class="aui-chat-header">请创建新的聊天室。。。</div></li>';
+				}
+				$("#aui-list-content").append(innerHTML);
+			},
+			error:function(XMLHttpRequest){
+				alert("error:"+XMLHttpRequest.status+";"+XMLHttpRequest.onerror);
+			}
+		})		
+	}
+	function toChat2(chatRoomId){
+		for(var i=0;i<myChatRoomList.length;i++){
+			if(chatRoomId==myChatRoomList[i].id){
+				sessionStorage.setItem("websocket-chatRoomId",myChatRoomList[i].id);
+				sessionStorage.setItem("toUserId",myChatRoomList[i].userIdListStr);
+				location.href="./html/chat_frm.html";
+				return;
+			}
+		}
+	}
+	function toVideoHtml(){
+		location.href="./html/video_frm.html";
+	}
+	function toVideoJsHtml(){
+		location.href="./html/video_js.html"
+		// location.href="./html/audio.html"
+	}
+	
+	function toVideoPlusPush(){
+		location.href="./html/vidoe_plus_push.html";
+	}
+	function toVideoPlusPlay(){
+		location.href="./html/vidoe_plus_play.html";
+	}
+    </script>
+</head>
+<body>
+<!-- <header class="aui-bar aui-bar-nav" id="onlineUserId" onclick="createChatRoom()">在线人员</header> -->
+<header class="aui-bar aui-bar-nav">
+        <a class="aui-pull-left aui-btn aui-btn-outlined" onclick="toVideoHtml()">
+            <span class="aui-iconfont aui-icon-menu"></span>
+        </a>
+        <div class="aui-title" id="onlineUserId" onclick="createChatRoom()">Title</div>
+        <a class="aui-pull-right aui-btn aui-btn-outlined" onclick="toVideoJsHtml()">
+            <span class="aui-iconfont aui-icon-search"></span>
+        </a>
+    </header>
+	
+<div class="aui-searchbar" id="search">
+        <div class="aui-searchbar-input aui-border-radius">
+            <i class="aui-iconfont aui-icon-search"></i>
+			<input type="file"  onchange = "selectedFile()">
+			<!-- <input type="file" accept="image/*"  onchange = "selectedFile()"> -->
+            <!-- <input type="file" placeholder="请选择要上传的附件" id="search-input" accept="image/bmp,image/jpeg,image/jpg,image/png"  > -->
+            <div class="aui-searchbar-clear-btn">
+                <i class="aui-iconfont aui-icon-close"></i>
+            </div>
+        </div>
+        <div class="aui-searchbar-btn" tapmode="" style="margin-right: 0px;">取消</div>
+    </div>	
+	
+	<div class="aui-info aui-margin-t-10 aui-padded-l-10 aui-padded-r-10">
+		<div class="aui-info-item">
+			<img src="" id="downPicUrl" style="width:1.5rem" class="aui-img-round"><span class="aui-margin-l-5">AUI</span>
+			</div>
+		<div class="aui-info-item">2015-07-13 22:31</div>
+	</div>
+	<div class="aui-content aui-margin-b-15">
+		<ul class="aui-list aui-media-list">
+			<li class="aui-list-item">
+				<div class="aui-media-list-item-inner">
+					<div class="aui-list-item-media" style="width:6rem" id="testHtml">
+						<video preload="auto" controls="controls" controlsList="nofullscreen nodownload" width="15.5rem" height="4rem" id="video"   autoplay="autoplay" poster ="./image/l1.png" style="width:100%;height:4rem;" >
+							<source src="/chatSocket/mySocketController/downloadVideo?prefix=1234&suffix=mp4" id="downVideoUrl"  type="video/mp4">
+						</video>
+					</div>
+					<div class="aui-list-item-inner">
+						<div class="aui-list-item-text">
+							<div class="aui-list-item-title">带有媒体的列表</div>
+						</div>
+					</div>
+				</div>
+			</li>
+			<li class="aui-list-item">
+				<div class="aui-btn aui-btn-primary aui-btn-block" onclick="toVideoPlusPush()">video-plus-push</div>
+			</li>
+			<li class="aui-list-item">
+				<div class="aui-btn aui-btn-primary aui-btn-block" onclick="toVideoPlusPlay()">video-plus-play</div>
+			</li>
+		</ul>
+	</div>
+			
+			
+			
+<div class="aui-content aui-margin-b-15">
+        <ul class="aui-list aui-media-list" id="aui-list-content">
+      <!--      <li class="aui-list-item aui-list-item-arrow">
+                <div class="aui-media-list-item-inner">
+                    <div class="aui-list-item-inner">
+                        <div class="aui-list-item-text">
+                            <div class="aui-list-item-title">带有媒体的列表一</div>
+                            <div class="aui-list-item-right">08:00</div>
+                        </div>
+                        <div class="aui-list-item-text aui-ellipsis-2">
+                            这里是内容区域，新版中的列表布局可以很轻松的帮助开发者完成常见列表样式。
+                        </div>
+                    </div>
+                </div>
+            </li> -->
+        </ul>
+    </div>	
+</body>
+<script type="text/javascript" charset="utf-8">
+	//取消浏览器的所有事件，使得active的样式在手机上正常生效
+	document.addEventListener('touchstart',function(){
+		return false;
+	},true);
+	// 禁止选择
+	document.oncontextmenu=function(){
+		return false;
+	};
+	// H5 plus事件处理
+	function plusReady(){
+		// openPrivacy();
+		// Android处理返回键
+		plus.key.addEventListener('backbutton',function(){
+			('iOS'==plus.os.name)?plus.nativeUI.confirm('确认退出？', function(e){
+				if(e.index>0){
+					plus.runtime.quit();
+				}
+			}, 'HelloH5', ['取消','确定']):(confirm('确认退出？')&&plus.runtime.quit());
+		},false);
+		// 关闭启动界面
+		plus.navigator.setStatusBarBackground('#D74B28');
+		setTimeout(function(){
+			plus.navigator.closeSplashscreen();
+		},200);
+	}
+	if(window.plus){
+		plusReady();
+	}else{
+		document.addEventListener('plusready',plusReady,false);
+	}
+</script>
+<script>
+	
+	//1,第一步读取用户选中的文件
+	
+	function selectedFile(){
+		console.log(11111);
+		//判断文件是否已经上传完成？？？？？？？？？？？？？？、
+		
+	    var oFile = event.target.files[0];
+	    
+	    var fileReader = new FileReader();
+	
+	    fileReader.onload = function(){
+	      var base64URL =  this.result;
+	      var blob = convertBase64UrlToBlob(base64URL,'image/jpeg');
+	      // uploadImage(blob,oFile.name);
+		  uploadFileByBlock(blob,oFile.name);
+	    }
+	
+	    fileReader.readAsDataURL(oFile)    
+	}
+	
+	//2,第二步将base64图片转换为Blob对象
+	
+	 function convertBase64UrlToBlob(urlData, filetype){
+	            //去掉url的头，并转换为byte
+	            var bytes = window.atob(urlData.split(',')[1]);
+	            //处理异常,将ascii码小于0的转换为大于0
+	            var ab = new ArrayBuffer(bytes.length);
+	            var ia = new Int8Array(ab);
+	            var i;
+	            for (i = 0; i < bytes.length; i++) {
+	                ia[i] = bytes.charCodeAt(i);
+	            }
+	            return new Blob([ab], {type : filetype});
+	}
+	
+	//3,第三步使用formData上传数据
+	function uploadImage(blob,fileName){
+	  var formData = new FormData();
+	    formData.append('file',blob,fileName);
+		// formData.append('fileName',fileName);
+		
+	    // var xhr = new XMLHttpRequest();
+	    // xhr.setRequestHeader("Content-type","application/x-www-form-urlencoded");  // 将参数解析成传统form的方式上传
+	    // xhr.open('post', '/chatSocket/file/upload',true);　
+		// xhr.open('post', '/chatSocket/mySocketController/uploadVideoOrPicture',true);　
+		// xhr.onload = successUpload();//上传成功事件监听　　
+		// xhr.onerror = errorUpload(); //上传失败事件监听
+	    // xhr.send(formData);    
+		
+		
+		 $.ajax({
+			url: "/chatSocket/mySocketController/uploadVideoOrPicture",
+			type: "POST",
+			data: formData,
+			async: true,        //异步
+			processData: false,  //jquery不要对form进行处理
+			contentType: false,  //指定为false才能形成正确的Content-Type
+			success: function(){
+			   //成功后的事件
+			   successUpload();
+			}
+		});
+	}
+
+		//分块上传思路
+		// 	1.先对文件进行MD5加密
+		// 	2.拿到MD5之后判断是否已经上传过了
+		// 	3.文件切片
+		// 	4.请求接口判断已经上传过的块
+		// 	5.post上传未传的块
+		// 	6.上传成功后通知后台合并
+	
+	
+
+	
+	
+	
+	//分块上传
+	
+	// function uploadFileByBlock(blob,fileName){
+	//         var file = blob;
+	//         var sharedSize = 1 * 1024 * 1024;
+	//         var sharedCount =Math.ceil(file.size/sharedSize);
+	//         for(var i = 0; i<sharedCount;i++){
+	//             var fd = new FormData();
+	//             var start = i*sharedSize;
+	//             var end = Math.min(file.size,start+sharedSize);
+	//             fd.append('file',file.slice(start,end),i+"!!!"+fileName);
+	//             // fd.append('name','upload.psd');
+	//             fd.append('total',sharedCount);
+	//             fd.append('index',i+1);
+	//             fd.append('size',sharedSize);
+	//             var xhr = new XMLHttpRequest();
+	//             xhr.open('POST','/chatSocket/mySocketController/uploadVideoOrPicture');
+	//             xhr.send(fd);
+	//         }
+	// }
+	
+	var sharedCount=0;
+	var nameList=[];
+	var preName="";
+	var endName="";
+	function uploadFileByBlock(blob,fileName){
+	        var file = blob;
+	        var sharedSize = 1 * 1024 * 1024;
+	        sharedCount =Math.ceil(file.size/sharedSize);
+			// nameList=fileName.split(".");
+			
+			endName=fileName.substring(fileName.lastIndexOf(".")+1);
+		    preName=md5(fileName.substring(0,fileName.lastIndexOf("."))).toLocaleUpperCase();
+// console.log("name："+fileName);
+// console.log(preName+":后缀："+endName);
+			var uploadEdCount=0;
+	        for(var i = 0; i<sharedCount;i++){
+	            var fd = new FormData();
+	            var start = i*sharedSize;
+	            var end = Math.min(file.size,start+sharedSize);
+	            // fd.append('file',file.slice(start,end));
+				fd.append('file',file.slice(start,end),preName+"_"+i+"."+endName);
+	            fd.append('fileName',preName+"_"+i+"."+endName);
+	            fd.append('total',sharedCount);
+	            fd.append('index',i);
+				fd.append('prefix',preName);
+				fd.append('suffix',endName);
+	            fd.append('size',sharedSize);
+				 $.ajax({
+					url: "/chatSocket/mySocketController/uploadVideoOrPicture",
+					type: "POST",
+					data: fd,
+					async: true,        //异步
+					processData: false,  //jquery不要对form进行处理
+					contentType: false,  //指定为false才能形成正确的Content-Type
+					success: function(result){
+					   //成功后的事件
+					   console.log("success:"+result.index);
+					   if(result.errorCode=="000000"){
+						   uploadEdCount++;
+						   if(uploadEdCount==sharedCount){
+							   // alert("success");
+							   //合并分块
+							   mergeFileBlock(preName,endName,sharedCount);
+						   }
+					   }else{
+						   
+					   }
+					},
+					error:function(XMLHttpRequest){
+						
+						console.log("error"+i);
+						if(XMLHttpRequest.response){
+							
+						}
+					}
+				});
+	        }
+	}
+	
+	//合并文件块
+	function mergeFileBlock(preName,endName,total){
+		var $data={};
+		$data.prefix=preName;
+		$data.suffix=endName;
+		$data.total=total;
+		$.ajax({
+			dataType:"json",
+			url:commonPreUrl+"/chatSocket/mySocketController/mergeFileBlock",
+			type:"POST",
+			data:$data,
+			xhrFields:{withCredentials:true},
+			async:true,
+			contentType:"application/x-www-form-urlencoded;charset=utf-8",
+			success:function(result){
+				// alert("success");
+				if(result.errorCode=="000000"){
+					alert("保存成功");
+					var path="."+endName;
+					if(path.IsPicture()){
+		                 document.getElementById("downPicUrl").src="/chatSocket/mySocketController/downloadFile?prefix="+preName+"&suffix="+endName;	
+					}else{//
+		                 // document.getElementById("downVideoUrl").src="/chatSocket/mySocketController/downloadFile?prefix="+preName+"&suffix="+endName;							
+					var innerhtml='<video controls="controls" preload="auto"   style="width:100%;height:4rem;" >'
+					+'<source src="/chatSocket/mySocketController/downloadFile?prefix='+preName+'&suffix='+endName+'" type="video/mp4"></video>';
+					$("#testHtml").empty();
+					$("#testHtml").append(innerhtml);
+					}
+
+				}
+			},
+			error:function(XMLHttpRequest){
+				alert("error:"+XMLHttpRequest.status+";"+XMLHttpRequest.onerror);
+			}
+		})		
+	}
+
+	function successUpload(){
+		console.log("success");
+	}
+	function errorUpload(){
+		console.log("error");
+	}
+	// 增加一个名为 IsPicture 的函数作为
+	  // String 构造函数的原型对象的一个方法。
+	  String.prototype.IsPicture = function()
+	  {
+		   //判断是否是图片 - strFilter必须是小写列举
+		   var strFilter=".jpeg|.gif|.jpg|.png|.bmp|.pic|.svg|"
+		   if(this.indexOf(".")>-1)
+		   {
+			   var p = this.lastIndexOf(".");
+			   var strPostfix=this.substring(p,this.length) + '|';
+			   strPostfix = strPostfix.toLowerCase();
+			   if(strFilter.indexOf(strPostfix)>-1)
+			   {
+				   return true;
+			   }
+		   }
+		   return false;
+	  }
+</script>
+</html>
